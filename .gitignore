@@ -188,3 +188,5 @@ FakesAssemblies/
 GeneratedArtifacts/
 _Pvt_Extensions/
 ModelManifest.xml
+/.vs/JPB.Console.Helper/v15/Server/sqlite3
+/.vs

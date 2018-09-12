@@ -1,7 +1,11 @@
 using System;
 
-namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
+namespace JPB.Console.Helper.Grid.CommandDispatcher
 {
+	/// <summary>
+	///		Defines an command that can be executed by the CommandDispatcher
+	/// </summary>
+	/// <seealso cref="DelegateCommand{T}" />
 	public class DelegateCommand : DelegateCommand<string>
 	{
 		public DelegateCommand(string text, Action<string> callback) : base(text, callback)
@@ -17,14 +21,24 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 		}
 	}
 
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
 	public class DelegateCommand<T> : IControlerCommand
 		where T : IConvertible
 	{
+		private readonly Func<T, bool> _fullTextCallback;
+		private readonly ConsoleKey _key;
+		private readonly Func<ConsoleKeyInfo, bool> _keyCallback;
+		private readonly string _lookupString;
+
 		private DelegateCommand(string lookupString)
 		{
 			StringComparison = StringComparison.OrdinalIgnoreCase;
-			_text = lookupString;
-			_lookupString = lookupString;//.Replace(ConsoleCommandDispatcher.Placeholder, ConsoleCommandDispatcher.Pattern);
+			StringHandle = lookupString;
+			_lookupString =
+				lookupString; //.Replace(ConsoleCommandDispatcher.Placeholder, ConsoleCommandDispatcher.Pattern);
 		}
 
 		public DelegateCommand(ConsoleKey key, Action<ConsoleKeyInfo> callback) : this(key.ToString())
@@ -35,8 +49,8 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 				callback(s);
 				return true;
 			};
-			this.HandleKey = true;
-			this.HandleString = false;
+			HandleKey = true;
+			HandleString = false;
 		}
 
 		public DelegateCommand(string text, Func<T, bool> keyCallback) : this(text)
@@ -59,42 +73,39 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 			return true;
 		})
 		{
-
 		}
 
 		public StringComparison StringComparison { get; set; }
 		public bool HandleKey { get; set; }
 		public bool HandleString { get; set; }
-		public string StringHandle
-		{
-			get { return _text; }
-		}
-		private readonly ConsoleKey _key;
-		private readonly string _text;
-		private readonly Func<T, bool> _fullTextCallback;
-		private readonly Func<ConsoleKeyInfo, bool> _keyCallback;
-		private readonly string _lookupString;
+
+		public string StringHandle { get; }
+
+		public string HelpText { get; set; }
 
 		public bool Handle(string key)
 		{
 			if (key.StartsWith(_lookupString, StringComparison))
 			{
-				var sValue = key.Substring(_text.Length);
+				var sValue = key.Substring(StringHandle.Length);
 				object convertedType;
 				try
 				{
 					convertedType = Convert.ChangeType(sValue, typeof(T));
 					if (convertedType == null)
+					{
 						return false;
+					}
 				}
 				catch (Exception)
 				{
 					return false;
 				}
 
-				var changeType = (T)convertedType;
+				var changeType = (T) convertedType;
 				return _fullTextCallback(changeType);
 			}
+
 			return false;
 		}
 
@@ -104,12 +115,39 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 			{
 				return _keyCallback(key);
 			}
+
 			return false;
+		}
+
+		public StringBuilderInterlaced Render()
+		{
+			var that = new StringBuilderInterlaced();
+			that.Append("Keyword: ");
+			if (HandleKey)
+			{
+				that.Append(_key.ToString(), ConsoleColor.Yellow);
+			}
+			else
+			{
+				that.Append(_lookupString, ConsoleColor.Yellow);
+			}
+
+			that.Append(", Argument: ");
+			that.Append(typeof(T).Name, ConsoleColor.Yellow);
+			if (!string.IsNullOrEmpty(HelpText))
+			{
+				that.Append(", Help: ");
+				that.Append(HelpText, ConsoleColor.Green);
+			}
+
+			return that;
 		}
 
 		public override string ToString()
 		{
-			return string.Format("StringComparison: {0}, HandleKey: {1}, HandleString: {2}, StringHandle: {3}, Argument Type: {4}", StringComparison, HandleKey, HandleString, StringHandle, typeof(T).Name);
+			return string.Format(
+				"StringComparison: {0}, HandleKey: {1}, HandleString: {2}, StringHandle: {3}, Argument Type: {4}, HelpText: {5}",
+				StringComparison, HandleKey, HandleString, StringHandle, typeof(T).Name, HelpText);
 		}
 	}
 }

@@ -2,31 +2,40 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
+namespace JPB.Console.Helper.Grid.CommandDispatcher
 {
 	public class UserInputIndicator : IDisposable
 	{
 		internal UserInputIndicator()
 		{
-
 		}
-
-		public event EventHandler Disposed;
 
 		public void Dispose()
 		{
 			OnDisposed();
 		}
 
+		public event EventHandler Disposed;
+
 		protected virtual void OnDisposed()
 		{
 			var handler = Disposed;
-			if (handler != null) handler(this, EventArgs.Empty);
+			if (handler != null)
+			{
+				handler(this, EventArgs.Empty);
+			}
 		}
 	}
 
+	/// <summary>
+	///		This class can be used to create a Dispatcher on the console to provider lookup for multibe actions and boundrys.
+	/// </summary>
 	public class ConsoleCommandDispatcher
 	{
+		public static readonly string Pattern = @"(?:\{\*\})";
+		public static readonly string Placeholder = "{*}";
+		private int _currentHistoryElement;
+
 		public ConsoleCommandDispatcher()
 		{
 			Commands = new List<IControlerCommand>();
@@ -35,39 +44,37 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 			ProvideHistory = true;
 		}
 
-		public static readonly string Pattern = @"(?:\{\*\})";
-		public static readonly string Placeholder = "{*}";
-
 		public bool ShowAllMatchingElements { get; set; }
 		public bool ProvideLookup { get; set; }
 		public bool ProvideHistory { get; set; }
 		public bool StopDispatcherLoop { get; set; }
-		public event EventHandler<UserInputIndicator> UserInput;
 
-		public List<IControlerCommand> Commands { get; private set; }
-		public List<string> History { get; private set; }
-		private int _currentHistoryElement = 0;
+		public List<IControlerCommand> Commands { get; }
+		public List<string> History { get; }
+		public event EventHandler<UserInputIndicator> UserInput;
 
 		private string[] GetLookups(string input)
 		{
-			var lookupCommands = Commands
-				.Where(f => f.HandleString);
-			var lookups = lookupCommands
+			var lookups = Commands
+				.Where(f => f.HandleString)
 				.Where(f => !f.StringHandle.Contains(Placeholder))
 				.Where(f => f.StringHandle.StartsWith(input));
 			return lookups.Select(f => f.StringHandle).ToArray();
-			//foreach (var source in lookups.Where(f => f.StringHandle.Contains(Placeholder)))
-			//{
-			//	var lookuptextBuilder = new StringBuilder();
-			//	var text = source.StringHandle;
-			//	var indexOfNextPlaceholder = text.IndexOf(Placeholder, StringComparison.InvariantCultureIgnoreCase);
-			//	var lastIndex = 0;
-			//	while (indexOfNextPlaceholder != -1)
-			//	{
-			//		var preText = source.StringHandle.Substring(lastIndex, indexOfNextPlaceholder);
-			//		var innerText =
-			//	}
-			//}
+		}
+
+		private void CleanupLine(int lastWrittenBytes, int startingLeft, int startingTop)
+		{
+			System.Console.CursorLeft = startingLeft;
+			System.Console.CursorTop = startingTop;
+			var spaceArray = "";
+			for (var i = 0; i < lastWrittenBytes; i++)
+			{
+				spaceArray += "\0";
+			}
+
+			System.Console.Write(spaceArray);
+			System.Console.CursorLeft = startingLeft;
+			System.Console.CursorTop = startingTop;
 		}
 
 		public void Run()
@@ -91,31 +98,23 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 					continue;
 				}
 
-				string fullInput = "";
-				if (!Char.IsControl(input.KeyChar))
+				var fullInput = "";
+				if (!char.IsControl(input.KeyChar))
 				{
 					fullInput += input.KeyChar;
 				}
+
 				var updated = false;
 				HistoryLookup(input, ref fullInput, ref updated);
 
 				if (ProvideLookup)
 				{
 					var exitLoop = false;
-					ConsoleKeyInfo nextKey = input;
+					var nextKey = input;
 
 					do
 					{
-						System.Console.CursorLeft = startingLeft;
-						System.Console.CursorTop = startingTop;
-						var spaceArray = "";
-						for (int i = 0; i < lastWrittenBytes; i++)
-						{
-							spaceArray += "\0";
-						}
-						System.Console.Write(spaceArray);
-						System.Console.CursorLeft = startingLeft;
-						System.Console.CursorTop = startingTop;
+						CleanupLine(lastWrittenBytes, startingLeft, startingTop);
 
 						lastWrittenBytes = fullInput.Length;
 						System.Console.Write(fullInput);
@@ -132,9 +131,10 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 							{
 								toAutoComplete +=
 									fuzzyNexts.Skip(1)
-										.Select(f => String.Format(" | {0}", f.Remove(0, fullInput.Length)))
+										.Select(f => string.Format(" | {0}", f.Remove(0, fullInput.Length)))
 										.Aggregate((e, f) => e + f);
 							}
+
 							var cColor = System.Console.ForegroundColor;
 							System.Console.ForegroundColor = ConsoleColor.DarkGray;
 							System.Console.Write(toAutoComplete);
@@ -160,18 +160,28 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 							}
 						}
 
-						if (nextKey.Key == ConsoleKey.LeftArrow)
+						if (nextKey.Key == ConsoleKey.RightArrow)
 						{
 							fullInput = fuzzyNext;
 						}
-						if (!Char.IsControl(nextKey.KeyChar))
+
+						if (!char.IsControl(nextKey.KeyChar))
 						{
 							fullInput = fullInput + nextKey.KeyChar;
 						}
+
+						if (string.IsNullOrEmpty(fullInput))
+						{
+							CleanupLine(lastWrittenBytes + 1, startingLeft, startingTop);
+							exitLoop = true;
+							break;
+						}
 					} while (nextKey.Key != ConsoleKey.Enter);
 
-					if(exitLoop)
+					if (exitLoop)
+					{
 						continue;
+					}
 
 					System.Console.WriteLine();
 
@@ -222,6 +232,7 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 						fullInput = History[_currentHistoryElement];
 					}
 				}
+
 				if (input.Key == ConsoleKey.DownArrow)
 				{
 					if (_currentHistoryElement < History.Count - 1)
@@ -241,7 +252,10 @@ namespace JPB.Console.Helper.Grid.NetCore.CommandDispatcher
 		protected virtual void OnUserInput(UserInputIndicator e)
 		{
 			var handler = UserInput;
-			if (handler != null) handler(this, e);
+			if (handler != null)
+			{
+				handler(this, e);
+			}
 		}
 	}
 }

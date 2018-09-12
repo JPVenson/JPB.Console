@@ -1,74 +1,77 @@
 using System;
 using System.Linq;
-using JPB.Console.Helper.Grid.NetCore.CommandDispatcher;
+using JPB.Console.Helper.Grid.CommandDispatcher;
 
-namespace JPB.Console.Helper.Grid.NetCore.Grid
+namespace JPB.Console.Helper.Grid.Grid
 {
 	public class ConsoleGridControler<T> : ConsoleCommandDispatcher
 	{
-		public ConsoleGridControler(ConsoleGrid<T> grid)
+		public ConsoleGridControler(TextGrid<T> grid)
 		{
-			base.ProvideHistory = false;
-			base.ProvideLookup = false;
-			this.ConsoleGrid = grid;
-			Commands.Add(new DelegateCommand(ConsoleKey.DownArrow, (info) =>
+			ProvideHistory = false;
+			ProvideLookup = false;
+			TextGrid = grid;
+			Commands.Add(new DelegateCommand(ConsoleKey.DownArrow, info =>
 			{
-				if (FocusedRowIndex < ConsoleGrid.SourceList.Count)
+				if (FocusedRowIndex < TextGrid.SourceList.Count)
 				{
 					FocusedRowIndex++;
-					ConsoleGrid.FocusedItem = ConsoleGrid.SourceList[FocusedRowIndex - 1];
-					ConsoleGrid.RenderGrid();
+					TextGrid.FocusedItem = TextGrid.SourceList[FocusedRowIndex - 1];
+					TextGrid.RenderGrid();
 				}
 			}));
-			Commands.Add(new DelegateCommand(ConsoleKey.Delete, (info) =>
+			Commands.Add(new DelegateCommand(ConsoleKey.Delete, info =>
 			{
-				if (ConsoleGrid.SourceList.Any())
+				if (TextGrid.SourceList.Any())
 				{
-					ConsoleGrid.SourceList.Remove(ConsoleGrid.SourceList[FocusedRowIndex - 1]);
+					TextGrid.SourceList.Remove(TextGrid.SourceList[FocusedRowIndex - 1]);
 					if (FocusedRowIndex > 1)
 					{
 						FocusedRowIndex--;
-						ConsoleGrid.FocusedItem = ConsoleGrid.SourceList[FocusedRowIndex - 1];
+						TextGrid.FocusedItem = TextGrid.SourceList[FocusedRowIndex - 1];
 					}
-					else if (FocusedRowIndex < ConsoleGrid.SourceList.Count)
+					else if (FocusedRowIndex < TextGrid.SourceList.Count)
 					{
 						FocusedRowIndex++;
-						ConsoleGrid.FocusedItem = ConsoleGrid.SourceList[FocusedRowIndex - 1];
+						TextGrid.FocusedItem = TextGrid.SourceList[FocusedRowIndex - 1];
 					}
-					ConsoleGrid.RenderGrid();
+
+					TextGrid.RenderGrid();
 				}
 			}));
-			Commands.Add(new DelegateCommand(ConsoleKey.UpArrow, (info) =>
+			Commands.Add(new DelegateCommand(ConsoleKey.UpArrow, info =>
 			{
 				if (FocusedRowIndex > 1)
 				{
 					FocusedRowIndex--;
-					ConsoleGrid.FocusedItem = ConsoleGrid.SourceList[FocusedRowIndex - 1];
-					ConsoleGrid.RenderGrid();
+					TextGrid.FocusedItem = TextGrid.SourceList[FocusedRowIndex - 1];
+					TextGrid.RenderGrid();
 				}
 			}));
-			Commands.Add(new DelegateCommand(ConsoleKey.Enter, (input) =>
+			Commands.Add(new DelegateCommand(ConsoleKey.Enter, input =>
 			{
 				if (input.Modifiers == ConsoleModifiers.Shift && AllowMultibeSelections)
 				{
-					var max = ConsoleGrid.SelectedItems.Max(s => ConsoleGrid.SourceList.IndexOf(s));
-					var min = ConsoleGrid.SelectedItems.Min(s => ConsoleGrid.SourceList.IndexOf(s));
+					var max = TextGrid.SelectedItems.Max(s => TextGrid.SourceList.IndexOf(s));
+					var min = TextGrid.SelectedItems.Min(s => TextGrid.SourceList.IndexOf(s));
 
 					if (max != -1 || min != -1)
 					{
 						var orderAsc = FocusedRowIndex > max;
 
-						for (int i = 0; i < ConsoleGrid.SourceList.Count; i++)
+						for (var i = 0; i < TextGrid.SourceList.Count; i++)
 						{
-							var source = ConsoleGrid.SourceList[i];
-							if (ConsoleGrid.SelectedItems.Contains(source))
+							var source = TextGrid.SourceList[i];
+							if (TextGrid.SelectedItems.Contains(source))
+							{
 								continue;
+							}
 
 							if (orderAsc)
 							{
 								if (i >= max && i < FocusedRowIndex)
 								{
-									ConsoleGrid.SelectedItems.Add(source);
+									TextGrid.SelectedItems.Add(source);
 									OnItemSelected(source);
 								}
 							}
@@ -76,45 +79,46 @@ namespace JPB.Console.Helper.Grid.NetCore.Grid
 							{
 								if (i >= FocusedRowIndex - 1 && i <= min)
 								{
-									ConsoleGrid.SelectedItems.Add(source);
+									TextGrid.SelectedItems.Add(source);
 									OnItemSelected(source);
 								}
 							}
 						}
-						ConsoleGrid.RenderGrid();
+
+						TextGrid.RenderGrid();
 						return;
 					}
 				}
 
 				if (input.Modifiers != ConsoleModifiers.Control)
 				{
-					ConsoleGrid.SelectedItems.Clear();
+					TextGrid.SelectedItems.Clear();
 				}
-				var val = ConsoleGrid.SourceList[FocusedRowIndex - 1];
 
-				if (ConsoleGrid.SelectedItems.Contains(val))
+				var val = TextGrid.SourceList[FocusedRowIndex - 1];
+
+				if (TextGrid.SelectedItems.Contains(val))
 				{
-					ConsoleGrid.SelectedItems.Remove(val);
+					TextGrid.SelectedItems.Remove(val);
 				}
 				else
 				{
-					ConsoleGrid.SelectedItems.Add(val);
+					TextGrid.SelectedItems.Add(val);
 					OnItemSelected(val);
 				}
 			}));
 		}
 
-		public ConsoleGridControler() : this(new ConsoleGrid<T>())
+		public ConsoleGridControler() : this(new TextGrid<T>())
 		{
-
 		}
-
-		public event EventHandler<T> ItemSelected;
-		public event EventHandler<T> ItemFocused;
 
 		public bool AllowMultibeSelections { get; set; }
 		public int FocusedRowIndex { get; set; }
-		public ConsoleGrid<T> ConsoleGrid { get; set; }
+		public TextGrid<T> TextGrid { get; set; }
+
+		public event EventHandler<T> ItemSelected;
+		public event EventHandler<T> ItemFocused;
 
 		protected virtual void OnItemFocused(T e)
 		{

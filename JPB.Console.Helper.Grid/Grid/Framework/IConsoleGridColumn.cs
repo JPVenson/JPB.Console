@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace JPB.Console.Helper.Grid.NetCore.Grid
+namespace JPB.Console.Helper.Grid
 {
-	public interface IConsoleGridColumn1
+	public interface IConsoleGridColumn
 	{
 		Func<object, object> GetValue { get; set; }
 		int MaxContentSize { get; set; }

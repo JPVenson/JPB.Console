@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using JPB.Console.Helper.Grid.NetCore.Grid;
+using JPB.Console.Helper.Grid.Grid;
 
 namespace JPB.Console.Helper.DbManager
 {
@@ -25,7 +25,7 @@ namespace JPB.Console.Helper.DbManager
 
 
 
-			var grid = new ConsoleGrid<Tuple<string, string>>();
+			var grid = new TextGrid<Tuple<string, string>>();
 			grid.ExpandConsole = false;
 			grid.RenderRowNumber = true;
 			grid.SourceList = new ObservableCollection<Tuple<string, string>>(elements);
